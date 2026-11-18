@@ -111,7 +111,7 @@ int main (int argc, char *argv[]) {
             }
         }
         
-        fprintf(re, "Informações Gerais: %s | %d | %.1f | %.0f | %.0f | %.0f \n", argv[1], data.n, data.alpha, data.r[0][0], data.s[0], data.g[0][0]);
+        fprintf(re, "Informações Gerais: %s | %d | %.1f | %.0f | %.0f | %.0f | r = %d \n", argv[1], data.n, data.alpha, data.r[0][0], data.s[0], data.g[0][0], data.ralloc);
         fprintf(re, "Valor função objetivo: %f\t \n", (double) cplex.getObjValue());
         fprintf(re, "Demanda Satisfeita: %d pares (%.2f%%)\t \n", satisfiedPairs, percentDemand);        
         fprintf(re, "Tempo de CPU: %f\t \n", (double) timer.getTime());
@@ -126,6 +126,7 @@ int main (int argc, char *argv[]) {
         cout << "\nFunção objetivo     : " << cplex.getObjValue () << endl ;
         cout << "Tamanho da rede (n) : " << data.n << endl;
         cout << "Fator de desconto   : " << data.alpha << endl;
+        cout << "Alocações por nó (r): " << data.ralloc << endl;
         cout << "Gap de Otimalidade  : " << (100 * gap) << " %" << endl;
         cout << "Tempo de CPU        : " << (double)timer.getTime() << " segundos" << endl;
         cout << "Demanda Satisfeita  : " << satisfiedPairs << " pares (" << fixed << setprecision(2) << percentDemand << "%)" << endl;        

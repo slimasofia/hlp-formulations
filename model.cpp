@@ -1,7 +1,18 @@
 #include "model.hpp"
-#define INSTANCIA_AP
+
+//   Uso       : ./out <instancia> <alpha> <receita> <custo_hub> <custo_link> [r]
+//   instância : arquivo da instância CAB (cab.txt)
+//   alpha     : fator de desconto nos arcos entre hubs (ex.: 0.2)
+//   receita   : receita por unidade de demanda r_ij (ex.: 1000)
+//   custo_hub : custo fixo de instalação de um hub s_k (ex.: 50)
+//   custo_link: custo fixo de um link inter-hub g_km (ex.: 5)
+//   r         : número máximo de hubs por nó (1, 2, 3 ou 25 = alocação múltipla); padrão 1
 
 void readData(Data& data, ifstream& file, int argc, char *argv[]) {
+    if (argc < 6) {
+        cerr << "Uso: " << argv[0] << " <instancia> <alpha> <receita> <custo_hub> <custo_link> [r]" << endl;
+        exit(EXIT_FAILURE);
+    }
 
     file >> data.n;
 
@@ -11,55 +22,17 @@ void readData(Data& data, ifstream& file, int argc, char *argv[]) {
     data.g.assign(data.n, vector<double>(data.n));
     data.s.resize(data.n);
 
-    if (argc >= 3)
-        data.alpha = atof(argv[2]);
-    else data.alpha = 0.2;
+    data.alpha = atof(argv[2]);
 
-#ifdef INSTANCIA_AP
-    // ========================== AP Data ==========================
-
-    vector<double> codx(data.n); 
-    vector<double> cody(data.n);
-
-    float sum = 0;
-
-    for (int i = 0; i < data.n; i++) {
-        for (int j = 0; j < data.n; j++) {
-            data.r[i][j] = atoi(argv[3]);
-        }
+    // Limite de alocações por nó (r-alocação); r >= n equivale à alocação múltipla
+    data.ralloc = (argc >= 7) ? atoi(argv[6]) : 1;
+    if (data.ralloc < 1) {
+        cerr << "Valor de r invalido: " << argv[6] << " (deve ser >= 1)" << endl;
+        exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < data.n; i++) {
-        file >> codx[i];
-        file >> cody[i];
-    }
-
-    for (int i = 0; i < data.n; i++) {
-        for (int j = 0; j < data.n; j++) {
-            data.c[i][j] = 0.001 * sqrt((codx[i] - codx[j]) * (codx[i] - codx[j]) + (cody[i] - cody[j]) * (cody[i] - cody[j]));
-        }
-    }
-
-    for (int i = 0; i < data.n; i++) {
-        for (int j = 0; j < data.n; j++) {
-            file >> data.w[i][j];
-        }
-    }
-
-    for (int i = 0; i < data.n; i++) {
-        file >> data.s[i];
-        data.s[i] = data.s[i] / 10;
-        sum = sum + data.s[i];
-    }
-
-    for (int i = 0; i < data.n; i++) {
-        for (int j = 0; j < data.n; j++) {
-            data.g[i][j] = 0.1 * sum / data.n;
-        }
-    }
-
-#else
-    // ========================== CAB Data ==========================
+    // ========================== Base CAB ==========================
+    // Cada entrada (i, j) do arquivo traz a demanda w_ij e o custo unitário c_ij
 
     float sum = 0;
 
@@ -71,13 +44,14 @@ void readData(Data& data, ifstream& file, int argc, char *argv[]) {
         }
     }
 
+    // Normaliza as demandas para que a soma total seja 1
     for (int i = 0; i < data.n; i++) {
         for (int j = 0; j < data.n; j++) {
             data.w[i][j] = data.w[i][j] / sum;
         }
     }
 
-    // Coletar receita CAB
+    // Receita, custo de instalação de hub e custo de link (constantes por instância)
     for (int i = 0; i < data.n; i++) {
         for (int j = 0; j < data.n; j++) {
             data.r[i][j] = atoi(argv[3]);
@@ -93,7 +67,6 @@ void readData(Data& data, ifstream& file, int argc, char *argv[]) {
             data.g[i][j] = atoi(argv[5]);
         }
     }
-#endif
 }
 
 void createVariables(IloEnv& env, Data& data, IloModel& mod,
@@ -179,15 +152,13 @@ void createConstraints(IloEnv& env, IloModel& mod, Data& data,
                      IloArray<IloArray<IloNumVarArray>>& b,
                      vector<double>& O) {
 
-    int r_alloc = 1;
-
-    // R1: forall(i in 1..n) sum(k in 1..n) x[i][k] <= 1
+    // R1: forall(i in 1..n) sum(k in 1..n) x[i][k] <= r
     for (int i = 0; i < data.n; i++) {
         IloExpr r1(env);
         for (int k = 0; k < data.n; k++) {
             r1 += x[i][k];
         }
-        mod.add(r1 <= r_alloc);
+        mod.add(r1 <= data.ralloc);
         r1.end();
     }
 
@@ -399,13 +370,13 @@ void createConstraintsTaherkhani(IloEnv& env, IloModel& mod, Data& data,
         }
     }
 
-    // (3): sum(k) x[i][k] <= 1
+    // (3): sum(k) x[i][k] <= r
     for(int i = 0; i < data.n; i++) {
         IloExpr r3(env);
         for(int k = 0; k < data.n; k++) {
             r3 += x[i][k];
         }
-        mod.add(r3 <= 1);
+        mod.add(r3 <= data.ralloc);
         r3.end();
     }
 

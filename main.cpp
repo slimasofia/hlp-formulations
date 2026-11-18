@@ -41,10 +41,9 @@ int main (int argc, char *argv[]) {
         // CONFIGURAÇÕES DO CPLEX
         IloCplex cplex(mod);
         cplex.setParam(IloCplex::EpGap, 0.0000001);             // Definindo uma tolerância
-        cplex.setParam(IloCplex::TiLim, 86400);                 // Tempo limite de resolução
+        cplex.setParam(IloCplex::TiLim, 21600);                 // Tempo limite de resolução (6 h)
         cplex.setWarning(env.getNullStream());                  // Eliminar warnings
 		cplex.setOut(env.getNullStream());					    // Elimina logs
-      //cplex.setParam(IloCplex::Param::Benders::Strategy, 3);  // Ativar Benders do solver
             
         // Pré-fixando variáveis
         for(int i = 0; i < data.n; i++) {   
@@ -98,102 +97,6 @@ int main (int argc, char *argv[]) {
         }
         double percentDemand = ((double)satisfiedPairs / totalPairs) * 100.0;        
 
-        // Salvar valores de x
-        FILE *rx;
-        rx = fopen("x_r2_results.txt", "aw+");
-
-        fprintf(rx, "\n");
-        fprintf(rx, "============================================================\n");
-        fprintf(rx, "Teste: %s | alpha: %.1f | receita: %.0f | custo hub: %.0f | custo link: %.0f\n",
-                argv[1],
-                data.alpha,
-                data.r[0][0],
-                data.s[0],
-                data.g[0][0]);
-
-        fprintf(rx, "Alocações:\n");
-
-        for(int i = 0; i < data.n; i++) {
-            for(int k = 0; k < data.n; k++) {
-
-                double x_value = cplex.getValue(x[i][k]);
-
-                if(x_value >= 0.5) {
-                    fprintf(rx, "Nó %d -> Hub %d\n", i + 1, k + 1);
-                }
-            }
-        }
-
-        fprintf(rx, "============================================================\n");
-        fclose(rx);
-
-        // Salvar valores de a
-        FILE *ra;
-        ra = fopen("a_results.txt", "aw+");
-
-        fprintf(ra, "\n");
-        fprintf(ra, "============================================================\n");
-        fprintf(ra, "Teste: %s | alpha: %.1f | receita: %.0f | custo hub: %.0f | custo link: %.0f\n",
-                argv[1],
-                data.alpha,
-                data.r[0][0],
-                data.s[0],
-                data.g[0][0]);
-
-        fprintf(ra, "Valores de a:\n");
-
-        for(int i = 0; i < data.n; i++) {
-            for(int k = 0; k < data.n; k++) {
-
-                double a_value = cplex.getValue(a[i][k]);
-
-                if(a_value > 1e-9) {
-                    fprintf(ra, "a[%d][%d] = %.12f\n",
-                            i + 1,
-                            k + 1,
-                            a_value);
-                }
-            }
-        }
-
-        fprintf(ra, "============================================================\n");
-        fclose(ra);
-
-        // Salvar valores de b
-        FILE *rb;
-        rb = fopen("b_results.txt", "aw+");
-
-        fprintf(rb, "\n");
-        fprintf(rb, "============================================================\n");
-        fprintf(rb, "Teste: %s | alpha: %.1f | receita: %.0f | custo hub: %.0f | custo link: %.0f\n",
-                argv[1],
-                data.alpha,
-                data.r[0][0],
-                data.s[0],
-                data.g[0][0]);
-
-        fprintf(rb, "Valores de b:\n");
-
-        for(int i = 0; i < data.n; i++) {
-            for(int j = 0; j < data.n; j++) {
-                for(int m = 0; m < data.n; m++) {
-
-                    double b_value = cplex.getValue(b[i][j][m]);
-
-                    if(b_value > 1e-9) {
-                        fprintf(rb, "b[%d][%d][%d] = %.12f\n",
-                                i + 1,
-                                j + 1,
-                                m + 1,
-                                b_value);
-                    }
-                }
-            }
-        }
-
-        fprintf(rb, "============================================================\n");
-        fclose(rb);
-
         // salvar resultados em arquivo
         FILE *re;
         re = fopen("my_results.txt","aw+"); 
@@ -205,7 +108,7 @@ int main (int argc, char *argv[]) {
             }
         }
         
-        fprintf(re, "Informações Gerais: %s | %d | %.1f | %.0f | %.0f | %.0f \n", argv[1], data.n, data.alpha, data.r[0][0], data.s[0], data.g[0][0]);
+        fprintf(re, "Informações Gerais: %s | %d | %.1f | %.0f | %.0f | %.0f | r = %d \n", argv[1], data.n, data.alpha, data.r[0][0], data.s[0], data.g[0][0], data.ralloc);
         fprintf(re, "Valor função objetivo: %f\t \n", (double) cplex.getObjValue());
         fprintf(re, "Demanda Satisfeita: %d pares (%.2f%%)\t \n", satisfiedPairs, percentDemand);        
         fprintf(re, "Tempo de CPU: %f\t \n", (double) timer.getTime());
@@ -217,10 +120,10 @@ int main (int argc, char *argv[]) {
         fprintf(re, "\n======================================================================\n");
         fclose(re); 
 
-        // mostrar resultados no terminal
         cout << "\nFunção objetivo     : " << cplex.getObjValue () << endl ;
 		cout << "Tamanho da rede (n) : " << data.n << endl;
         cout << "Fator de desconto   : " << data.alpha << endl;
+        cout << "Alocações por nó (r): " << data.ralloc << endl;
         cout << "Gap de Otimalidade  : " << (100 * gap) << " %" << endl;
 		cout << "Tempo de CPU        : " << (double)timer.getTime() << endl;
         cout << "Demanda Satisfeita  : " << satisfiedPairs << " pares (" << fixed << setprecision(2) << percentDemand << "%)" << endl;        

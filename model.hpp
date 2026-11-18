@@ -11,6 +11,7 @@ ILOSTLBEGIN
 struct Data {
 	int n;						// Tamanho da rede (quantidades de nós)
 	float alpha;				// Fator de desconto
+	int ralloc;					// Número máximo de hubs aos quais cada nó pode ser alocado (r-alocação)
 	vector<vector<double>> w;	// Quantidade de demanda a ser enviada entre os nós i e j
 	vector<vector<double>> r;	// Receita obtida por enviar uma unidade de demanda entre os nós i e j
 

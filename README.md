@@ -29,7 +29,11 @@ O objetivo é decidir quantos e quais concentradores instalar, quais arcos entre
 │                              #   createVariablesTaherkhani / createConstraintsTaherkhani -> referência
 ├── main.cpp                   # formulação proposta: CPLEX, pré-processamento, resolução e saída
 ├── main-taherkhani.cpp        # formulação de Taherkhani e Alumur (2019): idem
-├── cab.txt                    # instância CAB (25 nós)
+├── data/
+│   └── cab.txt                # instância CAB (25 nós)
+├── scripts/
+│   ├── run-proposta.sh        # roda todas as instâncias da formulação proposta
+│   └── run-taherkhani.sh      # roda todas as instâncias da formulação de referência
 ├── Makefile
 └── results/
     ├── my-results/            # resultados da formulação proposta (r1, r2, r3, r25)
@@ -62,7 +66,7 @@ make clean              # remove executáveis e arquivos de resultado
 
 | Argumento | Parâmetro | Descrição | Valores usados |
 |---|---|---|---|
-| `instancia` | — | arquivo da instância | `cab.txt` |
+| `instancia` | — | arquivo da instância | `data/cab.txt` |
 | `alpha` | $\alpha$ | fator de desconto nos arcos entre concentradores ($0 \le \alpha \le 1$) | 0.2, 0.4, 0.6, 0.8 |
 | `receita` | $r_{ij}$ | receita por unidade de demanda atendida | 1000, 1500, 2000 |
 | `custo_hub` | $s_k$ | custo fixo de instalação de um concentrador | 50, 100, 150 |
@@ -75,12 +79,38 @@ Exemplos:
 
 ```bash
 # Formulação proposta, alocação única, receita alta, custos baixos, alpha = 0,2
-./out cab.txt 0.2 2000 50 5 1
+./out data/cab.txt 0.2 2000 50 5 1
 
 # Taherkhani e Alumur (2019), alocação múltipla, receita baixa, custos altos, alpha = 0,8
-./taherkhani_out cab.txt 0.8 1000 150 15 25
+./taherkhani_out data/cab.txt 0.8 1000 150 15 25
 ```
-Algumas instâncias levam horas. O limite de tempo é de 21600 s (6 h) de relógio por instância.
+
+### Reproduzindo os experimentos
+
+As 3 receitas × 3 níveis de custo × 4 valores de $\alpha$ geram 36 instâncias por valor de $r$, ou seja, 144 instâncias por formulação. Algumas instâncias levam horas (o limite é de 21600 s, ou 6 h, de relógio por instância). Por isso, cada formulação tem o seu próprio script, para que possam ser executadas separadamente:
+
+```bash
+make
+./scripts/run-proposta.sh          # formulação proposta, r = 1, 2, 3 e 25
+./scripts/run-taherkhani.sh        # Taherkhani e Alumur (2019), r = 1, 2, 3 e 25
+```
+
+Os scripts podem ser chamados de qualquer diretório. Para rodar apenas alguns valores de $r$, passe-os como argumentos:
+
+```bash
+./scripts/run-proposta.sh 2 3      # apenas r = 2 e r = 3 (72 instâncias)
+```
+
+Cada script mostra o progresso (data, hora e parâmetros da instância atual) e, se uma instância falhar, segue para a próxima e informa o número de erros ao final. Os resultados de cada valor de $r$ são gravados em `results/my-results/r<r>.txt` (proposta) ou `results/taherkhani-results/r<r>.txt` (referência), por exemplo `results/my-results/r2.txt`.
+
+> **Atenção:** ao iniciar um valor de $r$, o script sobrescreve o arquivo correspondente. Os resultados do relatório continuam no histórico do Git e podem ser restaurados com `git checkout -- results/`.
+
+Para execuções longas, recomenda-se rodar em segundo plano e guardar o log:
+
+```bash
+nohup ./scripts/run-proposta.sh > run-proposta.log 2>&1 &
+tail -f run-proposta.log           # acompanhar o progresso
+```
 
 ## Configuração do CPLEX e pré-processamento
 
@@ -92,14 +122,14 @@ Algumas instâncias levam horas. O limite de tempo é de 21600 s (6 h) de relóg
 
 ## Dados
 
-A instância CAB (*Civil Aeronautics Board*), introduzida por O'Kelly (1987), representa 25 cidades da rede aérea dos Estados Unidos em 1970. A primeira linha de `cab.txt` contém $n$. Em seguida, para cada par $(i, j)$, há a demanda $w_{ij}$ e o custo unitário de transporte $c_{ij}$. Na leitura, as demandas são normalizadas para que $\sum_{i,j} w_{ij} = 1$.
+A instância CAB (*Civil Aeronautics Board*), introduzida por O'Kelly (1987), representa 25 cidades da rede aérea dos Estados Unidos em 1970. A primeira linha de `data/cab.txt` contém $n$. Em seguida, para cada par $(i, j)$, há a demanda $w_{ij}$ e o custo unitário de transporte $c_{ij}$. Na leitura, as demandas são normalizadas para que $\sum_{i,j} w_{ij} = 1$.
 
 ## Saída
 
-Cada execução imprime um resumo no terminal e acrescenta um bloco ao arquivo de resultados da formulação (`my_results.txt` para a proposta e `taherkhani_results.txt` para a referência):
+Cada execução imprime um resumo no terminal e acrescenta um bloco a um arquivo no diretório corrente (`my_results.txt` para a proposta e `taherkhani_results.txt` para a referência). Ao usar os scripts, esse bloco é transferido para o arquivo de $r$ correspondente em `results/`. O bloco tem o formato:
 
 ```
-Informações Gerais: cab.txt | 25 | 0.8 | 1000 | 150 | 15 | r = 1
+Informações Gerais: data/cab.txt | 25 | 0.8 | 1000 | 150 | 15 | r = 1
 Valor função objetivo: 15.282997
 Demanda Satisfeita: 96 pares (16.00%)
 Tempo de CPU: 5.810000
